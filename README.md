@@ -1,126 +1,129 @@
+# ML-Based Drug Discovery for Neglected Diseases
+
 ## Project Overview
 
-This project focuses on predicting and ranking potential drug molecules for multiple diseases using Machine Learning. The system analyzes chemical compounds and estimates their biological activity (pIC50), helping identify promising candidates for further research.
-
-The goal is to accelerate drug discovery by leveraging data-driven approaches instead of traditional trial-and-error methods.
+A machine learning system that predicts the **biological activity (pIC50)** of chemical compounds against four diseases — **Cancer, Dengue, HIV, and Tuberculosis** — using molecular fingerprints extracted from SMILES structures. The system ranks candidate molecules by predicted activity to accelerate early-stage drug discovery.
 
 ---
 
-## What This Project Does
+## Dataset
 
-* Collects bioactivity data of chemical compounds
-* Converts molecular structures (SMILES) into numerical features using fingerprints
-* Trains ML models to predict pIC50 (drug effectiveness)
-* Ranks molecules based on predicted activity
-* Supports multi-disease prediction system
+**Source:** ChEMBL Database (European Bioinformatics Institute) — collected via ChEMBL API  
+**Total Molecules:** 19,146  
+**Features:** Morgan/ECFP molecular fingerprints (from SMILES)  
+**Target:** pIC50 (continuous — higher = more biologically active)
 
----
+### Disease Distribution
 
-## Dataset Information
+| Disease | Molecules |
+|---|---|
+| Cancer | 8,655 |
+| HIV | 5,061 |
+| Dengue | 4,254 |
+| Tuberculosis | 1,306 |
+| **Total** | **19,146** |
 
-* Data is collected from the ChEMBL database
-* ChEMBL is maintained by the European Bioinformatics Institute
-* It is a trusted and certified bioactivity database used globally in drug discovery research
-
----
-
-## Dataset Details
-
-* Data collected for 4 different diseases
-* Each dataset contains:
-
-  * Molecule ID (molecule_chembl_id)
-  * SMILES (chemical structure)
-  * Bioactivity values (IC50/pIC50)
-* All 4 datasets are:
-
-  * Cleaned
-  * Preprocessed
-  * Merged into a single unified dataset for training
+> Tuberculosis is significantly underrepresented (~6.8% of data), making it the hardest disease class for the model to generalize on.
 
 ---
 
-## Workflow
+## Pipeline
 
-1. Data Collection
-
-   * Extracted using ChEMBL API
-
-2. Data Preprocessing
-
-   * Removed missing/invalid values
-   * Standardized bioactivity values
-
-3. Feature Engineering
-
-   * Converted SMILES to molecular fingerprints (ECFP/Morgan)
-
-4. Model Training
-
-   * Applied ML models such as:
-
-     * Random Forest
-     * Gradient Boosting
-     * SVM (optional)
-
-5. Evaluation
-
-   * Metrics used:
-
-     * R² Score
-     * RMSE
-     * MAE
-
-6. Prediction
-
-   * Predict pIC50 values
-   * Rank top molecules for each disease
+```
+ChEMBL API
+    → Extract bioactivity data (IC50 values) for 4 diseases
+    → Standardize to pIC50 = -log10(IC50 × 10⁻⁹)
+    → Remove missing/invalid values
+    → Convert SMILES → Morgan Fingerprints (ECFP) via RDKit
+    → Merge all 4 disease datasets (19,146 molecules)
+    → RandomizedSearchCV (Random Forest)
+    → Predict pIC50
+    → Rank top candidate molecules
+```
 
 ---
 
-## Key Concepts Used
+## Feature Engineering — Molecular Fingerprints
 
-* Machine Learning (Regression Models)
-* Feature Engineering (Molecular Fingerprints)
-* Bioinformatics Data Processing
-* Model Optimization (RandomizedSearchCV)
+Raw chemical structures (SMILES strings) are converted into numerical feature vectors using **Morgan Fingerprints (ECFP)** via RDKit. This encodes the local chemical environment around each atom into a fixed-length binary vector, enabling standard ML models to process molecular data without requiring graph-based architectures.
+
+---
+
+## Model — Random Forest Regressor
+
+Optimized using **RandomizedSearchCV** with cross-validation.
+
+**Best Parameters:**
+
+| Parameter | Value |
+|---|---|
+| n_estimators | 108 |
+| max_depth | 40 |
+| max_features | None |
+| min_samples_leaf | 1 |
+| min_samples_split | 2 |
+
+---
+
+## Results
+
+| Metric | Train | Test |
+|---|---|---|
+| **R² Score** | 0.9559 | **0.7953** |
+| RMSE | 0.3377 | 0.7254 |
+| MAE | 0.2279 | 0.4822 |
+
+**Test R² of 0.7953** means the model explains ~80% of variance in biological activity from molecular structure alone — strong performance for a noisy cheminformatics regression task.
+
+### Overfitting Note
+
+The gap between Train R² (0.9559) and Test R² (0.7953) indicates moderate overfitting, driven by the deep tree configuration (`max_depth=40`, `min_samples_split=2`). Future work includes stronger regularization or switching to XGBoost/LightGBM with depth constraints.
 
 ---
 
 ## Output
 
-* Predicted pIC50 values for molecules
-* Ranking of top potential drug candidates
-* Model performance metrics
+For a given SMILES input, the system:
+- Predicts pIC50 value (biological activity score)
+- Ranks molecules from most to least active
+- Supports prediction across all 4 disease targets
 
 ---
 
 ## Tech Stack
 
-* Python
-* Pandas, NumPy
-* Scikit-learn
-* RDKit
-* Matplotlib, Seaborn
+| Tool | Purpose |
+|---|---|
+| Python | Core language |
+| ChEMBL API | Bioactivity data collection |
+| RDKit | SMILES → Morgan Fingerprint conversion |
+| Pandas, NumPy | Data processing |
+| Scikit-learn | Random Forest, RandomizedSearchCV |
+| Matplotlib, Seaborn | Visualization |
+| Jupyter Notebook | Development environment |
 
 ---
 
-## Real-World Impact
+## Limitations
 
-* Helps in early-stage drug discovery
-* Reduces time and cost of research
-* Supports research in neglected diseases
-* Can be extended to a multi-disease recommendation system
+- Moderate overfitting due to deep tree configuration
+- Tuberculosis class is underrepresented (1,306 molecules vs 8,655 for Cancer)
+- Morgan fingerprints lose 3D structural information — graph-based models (GNNs) would capture this better
+- Static dataset — not connected to live ChEMBL updates
 
 ---
 
 ## Future Enhancements
 
-* Deep Learning models (Graph Neural Networks)
-* Integration with a chatbot interface
-* Real-time molecule input and prediction
-* Deployment using Streamlit or a web application
+- Graph Neural Networks (GNNs) for direct molecular graph learning
+- Disease-specific models to handle class imbalance
+- Stronger regularization (XGBoost, LightGBM, depth constraints)
+- Streamlit deployment for real-time molecule input and ranking
 
 ---
 
+## Author
 
+**Akula Monish Ram**  
+B.Tech CSE — Lovely Professional University  
+Minor in AI — IIT Ropar
